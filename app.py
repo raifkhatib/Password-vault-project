@@ -3,7 +3,15 @@ import secrets
 from datetime import timedelta
 from pathlib import Path
 
-from flask import Flask, flash, redirect, render_template, session, url_for
+from flask import (
+    Flask,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    session,
+    url_for
+)
 from flask_login import (
     LoginManager,
     current_user,
@@ -62,6 +70,31 @@ def get_vault_key():
     return stored_key.encode("utf-8")
 
 
+def require_vault_key():
+    vault_key = get_vault_key()
+
+    if vault_key is None:
+        logout_user()
+        session.clear()
+        flash("Your vault session expired. Please log in again.")
+
+    return vault_key
+
+
+def get_owned_credential(credential_id):
+    credential = db.session.scalar(
+        db.select(Credential).where(
+            Credential.id == credential_id,
+            Credential.user_id == current_user.id
+        )
+    )
+
+    if credential is None:
+        abort(404)
+
+    return credential
+
+
 def credential_for_display(credential, vault_key):
     return {
         "id": credential.id,
@@ -88,6 +121,29 @@ def credential_for_display(credential, vault_key):
         "created_at": credential.created_at,
         "updated_at": credential.updated_at
     }
+
+
+def encrypt_credential_form(credential, form, vault_key):
+    credential.service_encrypted = encrypt_text(
+        vault_key,
+        form.service.data.strip()
+    )
+    credential.username_encrypted = encrypt_text(
+        vault_key,
+        form.login_username.data.strip()
+    )
+    credential.password_encrypted = encrypt_text(
+        vault_key,
+        form.password.data
+    )
+    credential.website_encrypted = encrypt_text(
+        vault_key,
+        form.website.data.strip() if form.website.data else ""
+    )
+    credential.notes_encrypted = encrypt_text(
+        vault_key,
+        form.notes.data.strip() if form.notes.data else ""
+    )
 
 
 @app.route("/")
@@ -162,12 +218,9 @@ def login():
 @app.route("/vault")
 @login_required
 def vault():
-    vault_key = get_vault_key()
+    vault_key = require_vault_key()
 
     if vault_key is None:
-        logout_user()
-        session.clear()
-        flash("Your vault session expired. Please log in again.")
         return redirect(url_for("login"))
 
     credential_records = db.session.scalars(
@@ -190,40 +243,16 @@ def vault():
 @app.route("/vault/add", methods=["GET", "POST"])
 @login_required
 def add_credential():
-    vault_key = get_vault_key()
+    vault_key = require_vault_key()
 
     if vault_key is None:
-        logout_user()
-        session.clear()
-        flash("Your vault session expired. Please log in again.")
         return redirect(url_for("login"))
 
     form = CredentialForm()
 
     if form.validate_on_submit():
-        credential = Credential(
-            user_id=current_user.id,
-            service_encrypted=encrypt_text(
-                vault_key,
-                form.service.data.strip()
-            ),
-            username_encrypted=encrypt_text(
-                vault_key,
-                form.login_username.data.strip()
-            ),
-            password_encrypted=encrypt_text(
-                vault_key,
-                form.password.data
-            ),
-            website_encrypted=encrypt_text(
-                vault_key,
-                form.website.data.strip() if form.website.data else ""
-            ),
-            notes_encrypted=encrypt_text(
-                vault_key,
-                form.notes.data.strip() if form.notes.data else ""
-            )
-        )
+        credential = Credential(user_id=current_user.id)
+        encrypt_credential_form(credential, form, vault_key)
 
         db.session.add(credential)
         db.session.commit()
@@ -236,6 +265,78 @@ def add_credential():
         form=form,
         page_title="Add credential"
     )
+
+
+@app.route("/vault/<int:credential_id>")
+@login_required
+def view_credential(credential_id):
+    vault_key = require_vault_key()
+
+    if vault_key is None:
+        return redirect(url_for("login"))
+
+    credential = get_owned_credential(credential_id)
+    displayed_credential = credential_for_display(
+        credential,
+        vault_key
+    )
+
+    return render_template(
+        "credential_detail.html",
+        credential=displayed_credential
+    )
+
+
+@app.route("/vault/<int:credential_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_credential(credential_id):
+    vault_key = require_vault_key()
+
+    if vault_key is None:
+        return redirect(url_for("login"))
+
+    credential = get_owned_credential(credential_id)
+    displayed_credential = credential_for_display(
+        credential,
+        vault_key
+    )
+
+    form = CredentialForm(data=displayed_credential)
+
+    if form.validate_on_submit():
+        encrypt_credential_form(credential, form, vault_key)
+        db.session.commit()
+
+        flash("Credential updated and encrypted.")
+        return redirect(
+            url_for(
+                "view_credential",
+                credential_id=credential.id
+            )
+        )
+
+    return render_template(
+        "credential_form.html",
+        form=form,
+        page_title="Edit credential"
+    )
+
+
+@app.route("/vault/<int:credential_id>/delete", methods=["POST"])
+@login_required
+def delete_credential(credential_id):
+    vault_key = require_vault_key()
+
+    if vault_key is None:
+        return redirect(url_for("login"))
+
+    credential = get_owned_credential(credential_id)
+
+    db.session.delete(credential)
+    db.session.commit()
+
+    flash("Credential deleted.")
+    return redirect(url_for("vault"))
 
 
 @app.route("/logout", methods=["POST"])

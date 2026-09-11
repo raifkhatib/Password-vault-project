@@ -22,20 +22,19 @@
                 <p class="muted">{{ credential.login_username }}</p>
 
                 {% if credential.website %}
-                    <p>
-                        <a
-                            href="{{ credential.website }}"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            {{ credential.website }}
-                        </a>
-                    </p>
+                    <p class="muted">{{ credential.website }}</p>
                 {% endif %}
 
                 <p class="muted">
                     Updated {{ credential.updated_at.strftime("%Y-%m-%d %H:%M") }}
                 </p>
+
+                <a
+                    class="button"
+                    href="{{ url_for('view_credential', credential_id=credential.id) }}"
+                >
+                    View credential
+                </a>
             </article>
         {% endfor %}
     </section>
