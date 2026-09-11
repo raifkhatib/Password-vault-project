@@ -13,18 +13,40 @@
 
             <div class="nav-links">
                 {% if current_user.is_authenticated %}
-                    <a class="button button-secondary" href="{{ url_for('vault') }}">
+                    <a
+                        class="button button-secondary"
+                        href="{{ url_for('vault') }}"
+                    >
                         My vault
                     </a>
 
-                    <form class="inline-form" method="post" action="{{ url_for('logout') }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <a
+                        class="button button-secondary"
+                        href="{{ url_for('password_generator') }}"
+                    >
+                        Generator
+                    </a>
+
+                    <form
+                        class="inline-form"
+                        method="post"
+                        action="{{ url_for('logout') }}"
+                    >
+                        <input
+                            type="hidden"
+                            name="csrf_token"
+                            value="{{ csrf_token() }}"
+                        >
                         <button type="submit">Log out</button>
                     </form>
                 {% else %}
-                    <a class="button button-secondary" href="{{ url_for('login') }}">
+                    <a
+                        class="button button-secondary"
+                        href="{{ url_for('login') }}"
+                    >
                         Log in
                     </a>
+
                     <a class="button" href="{{ url_for('register') }}">
                         Create account
                     </a>

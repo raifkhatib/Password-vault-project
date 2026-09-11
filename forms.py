@@ -1,5 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import (
+    BooleanField,
+    IntegerField,
     PasswordField,
     StringField,
     SubmitField,
@@ -9,6 +11,7 @@ from wtforms.validators import (
     DataRequired,
     EqualTo,
     Length,
+    NumberRange,
     Optional,
     Regexp,
     URL
@@ -110,3 +113,16 @@ class CredentialForm(FlaskForm):
     )
 
     submit = SubmitField("Save credential")
+
+
+class PasswordGeneratorForm(FlaskForm):
+    length = IntegerField(
+        "Password length",
+        default=20,
+        validators=[
+            DataRequired(),
+            NumberRange(min=12, max=128)
+        ]
+    )
+
+    submit = SubmitField("Generate password")

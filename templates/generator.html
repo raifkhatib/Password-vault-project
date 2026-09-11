@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Password Generator - Password Vault{% endblock %}
+
+{% block content %}
+<section class="auth-card card">
+    <p class="muted">Cryptographically secure randomness</p>
+    <h1>Password generator</h1>
+    <p class="muted">
+        Choose a length between 12 and 128 characters. Every generated
+        password contains uppercase, lowercase, numeric, and symbol characters.
+    </p>
+
+    <form method="post">
+        {{ form.hidden_tag() }}
+
+        {{ form.length.label }}
+        {{ form.length() }}
+        {% for error in form.length.errors %}
+            <p class="error">{{ error }}</p>
+        {% endfor %}
+
+        {{ form.submit(class="button") }}
+    </form>
+
+    {% if generated_password %}
+        <section class="generated-password">
+            <h2>Generated password</h2>
+            <code>{{ generated_password }}</code>
+            <p class="muted">
+                Copy it now. The application does not automatically save it.
+            </p>
+        </section>
+    {% endif %}
+</section>
+{% endblock %}

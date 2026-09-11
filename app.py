@@ -22,9 +22,19 @@ from flask_login import (
 from flask_session import Session as ServerSession
 from flask_wtf.csrf import CSRFProtect
 
-from forms import CredentialForm, LoginForm, RegistrationForm
+from forms import (
+    CredentialForm,
+    LoginForm,
+    PasswordGeneratorForm,
+    RegistrationForm
+)
 from models import Credential, User, db
-from security import decrypt_text, derive_vault_key, encrypt_text
+from security import (
+    decrypt_text,
+    derive_vault_key,
+    encrypt_text,
+    generate_secure_password
+)
 
 
 app = Flask(__name__)
@@ -337,6 +347,24 @@ def delete_credential(credential_id):
 
     flash("Credential deleted.")
     return redirect(url_for("vault"))
+
+
+@app.route("/generator", methods=["GET", "POST"])
+@login_required
+def password_generator():
+    form = PasswordGeneratorForm()
+    generated_password = None
+
+    if form.validate_on_submit():
+        generated_password = generate_secure_password(
+            form.length.data
+        )
+
+    return render_template(
+        "generator.html",
+        form=form,
+        generated_password=generated_password
+    )
 
 
 @app.route("/logout", methods=["POST"])
