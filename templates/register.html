@@ -1,45 +1,42 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create Account - Password Vault</title>
-</head>
-<body>
-    <main>
-        <h1>Create an account</h1>
+{% extends "base.html" %}
 
-        <form method="post">
-            {{ form.hidden_tag() }}
+{% block title %}Create Account - Password Vault{% endblock %}
 
-            <p>
-                {{ form.username.label }}<br>
-                {{ form.username(autocomplete="username") }}
-            </p>
-            {% for error in form.username.errors %}
-                <p>{{ error }}</p>
-            {% endfor %}
+{% block content %}
+<section class="auth-card card">
+    <p class="muted">New encrypted vault</p>
+    <h1>Create your account</h1>
+    <p class="muted">
+        Choose a master password with at least 12 characters.
+    </p>
 
-            <p>
-                {{ form.password.label }}<br>
-                {{ form.password(autocomplete="new-password") }}
-            </p>
-            {% for error in form.password.errors %}
-                <p>{{ error }}</p>
-            {% endfor %}
+    <form method="post">
+        {{ form.hidden_tag() }}
 
-            <p>
-                {{ form.confirm_password.label }}<br>
-                {{ form.confirm_password(autocomplete="new-password") }}
-            </p>
-            {% for error in form.confirm_password.errors %}
-                <p>{{ error }}</p>
-            {% endfor %}
+        {{ form.username.label }}
+        {{ form.username(autocomplete="username") }}
+        {% for error in form.username.errors %}
+            <p class="error">{{ error }}</p>
+        {% endfor %}
 
-            {{ form.submit() }}
-        </form>
+        {{ form.password.label }}
+        {{ form.password(autocomplete="new-password") }}
+        {% for error in form.password.errors %}
+            <p class="error">{{ error }}</p>
+        {% endfor %}
 
-        <p><a href="{{ url_for('home') }}">Return to homepage</a></p>
-    </main>
-</body>
-</html>
+        {{ form.confirm_password.label }}
+        {{ form.confirm_password(autocomplete="new-password") }}
+        {% for error in form.confirm_password.errors %}
+            <p class="error">{{ error }}</p>
+        {% endfor %}
+
+        {{ form.submit(class="button") }}
+    </form>
+
+    <p class="muted">
+        Already registered?
+        <a href="{{ url_for('login') }}">Log in here</a>.
+    </p>
+</section>
+{% endblock %}

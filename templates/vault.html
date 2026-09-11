@@ -1,20 +1,22 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Vault - Password Vault</title>
-</head>
-<body>
-    <main>
-        <h1>Your vault</h1>
-        <p>Logged in as {{ current_user.username }}.</p>
-        <p>Credential storage will be added in the next stage.</p>
+{% extends "base.html" %}
 
-        <form method="post" action="{{ url_for('logout') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit">Log out</button>
-        </form>
-    </main>
-</body>
-</html>
+{% block title %}Your Vault - Password Vault{% endblock %}
+
+{% block content %}
+<section class="vault-header card">
+    <div>
+        <p class="muted">Signed in as {{ current_user.username }}</p>
+        <h1>Your encrypted vault</h1>
+    </div>
+
+    <button type="button">Add credential</button>
+</section>
+
+<section class="empty-state card">
+    <h2>No saved credentials</h2>
+    <p class="muted">
+        Your encrypted credentials will appear here after the storage
+        functionality is added.
+    </p>
+</section>
+{% endblock %}
