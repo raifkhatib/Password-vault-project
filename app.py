@@ -3,12 +3,14 @@ import secrets
 from datetime import timedelta
 from pathlib import Path
 
+from cachelib.file import FileSystemCache
 from flask import (
     Flask,
     abort,
     flash,
     redirect,
     render_template,
+    request,
     session,
     url_for
 )
@@ -48,9 +50,12 @@ app.config["SECRET_KEY"] = (
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///vault.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-app.config["SESSION_TYPE"] = "filesystem"
-app.config["SESSION_FILE_DIR"] = str(session_directory)
-app.config["SESSION_USE_SIGNER"] = True
+app.config["SESSION_TYPE"] = "cachelib"
+app.config["SESSION_CACHELIB"] = FileSystemCache(
+    cache_dir=str(session_directory),
+    threshold=500
+)
+app.config["SESSION_ID_LENGTH"] = 32
 app.config["SESSION_PERMANENT"] = True
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -154,6 +159,44 @@ def encrypt_credential_form(credential, form, vault_key):
         vault_key,
         form.notes.data.strip() if form.notes.data else ""
     )
+
+
+@app.after_request
+def add_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Permissions-Policy"] = (
+        "camera=(), microphone=(), geolocation=()"
+    )
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self'; "
+        "img-src 'self' data:; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'; "
+        "frame-ancestors 'none'"
+    )
+
+    protected_endpoints = {
+        "vault",
+        "add_credential",
+        "view_credential",
+        "edit_credential",
+        "delete_credential",
+        "password_generator"
+    }
+
+    if request.endpoint in protected_endpoints:
+        response.headers["Cache-Control"] = (
+            "no-store, no-cache, must-revalidate, private"
+        )
+        response.headers["Pragma"] = "no-cache"
+
+    return response
 
 
 @app.route("/")
