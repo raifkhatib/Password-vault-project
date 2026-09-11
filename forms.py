@@ -1,6 +1,18 @@
 from flask_wtf import FlaskForm
-from wtforms import PasswordField, StringField, SubmitField
-from wtforms.validators import DataRequired, EqualTo, Length, Regexp
+from wtforms import (
+    PasswordField,
+    StringField,
+    SubmitField,
+    TextAreaField
+)
+from wtforms.validators import (
+    DataRequired,
+    EqualTo,
+    Length,
+    Optional,
+    Regexp,
+    URL
+)
 
 
 class RegistrationForm(FlaskForm):
@@ -53,3 +65,48 @@ class LoginForm(FlaskForm):
     )
 
     submit = SubmitField("Log in")
+
+
+class CredentialForm(FlaskForm):
+    service = StringField(
+        "Service name",
+        validators=[
+            DataRequired(),
+            Length(max=120)
+        ]
+    )
+
+    login_username = StringField(
+        "Username or email",
+        validators=[
+            DataRequired(),
+            Length(max=180)
+        ]
+    )
+
+    password = PasswordField(
+        "Password",
+        validators=[
+            DataRequired(),
+            Length(max=256)
+        ]
+    )
+
+    website = StringField(
+        "Website",
+        validators=[
+            Optional(),
+            URL(),
+            Length(max=255)
+        ]
+    )
+
+    notes = TextAreaField(
+        "Private notes",
+        validators=[
+            Optional(),
+            Length(max=1000)
+        ]
+    )
+
+    submit = SubmitField("Save credential")

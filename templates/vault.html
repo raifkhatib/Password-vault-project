@@ -9,14 +9,47 @@
         <h1>Your encrypted vault</h1>
     </div>
 
-    <button type="button">Add credential</button>
+    <a class="button" href="{{ url_for('add_credential') }}">
+        Add credential
+    </a>
 </section>
 
-<section class="empty-state card">
-    <h2>No saved credentials</h2>
-    <p class="muted">
-        Your encrypted credentials will appear here after the storage
-        functionality is added.
-    </p>
-</section>
+{% if credentials %}
+    <section class="credential-grid">
+        {% for credential in credentials %}
+            <article class="credential-card card">
+                <h2>{{ credential.service }}</h2>
+                <p class="muted">{{ credential.login_username }}</p>
+
+                {% if credential.website %}
+                    <p>
+                        <a
+                            href="{{ credential.website }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            {{ credential.website }}
+                        </a>
+                    </p>
+                {% endif %}
+
+                <p class="muted">
+                    Updated {{ credential.updated_at.strftime("%Y-%m-%d %H:%M") }}
+                </p>
+            </article>
+        {% endfor %}
+    </section>
+{% else %}
+    <section class="empty-state card">
+        <h2>No saved credentials</h2>
+        <p class="muted">
+            Add your first credential. Every field will be encrypted before
+            it enters the SQLite database.
+        </p>
+
+        <a class="button" href="{{ url_for('add_credential') }}">
+            Add credential
+        </a>
+    </section>
+{% endif %}
 {% endblock %}

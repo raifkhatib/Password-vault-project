@@ -1,6 +1,7 @@
 import os
 import secrets
 from datetime import timedelta
+from pathlib import Path
 
 from flask import Flask, flash, redirect, render_template, session, url_for
 from flask_login import (
@@ -10,25 +11,37 @@ from flask_login import (
     login_user,
     logout_user
 )
+from flask_session import Session as ServerSession
 from flask_wtf.csrf import CSRFProtect
 
-from forms import LoginForm, RegistrationForm
-from models import User, db
+from forms import CredentialForm, LoginForm, RegistrationForm
+from models import Credential, User, db
+from security import decrypt_text, derive_vault_key, encrypt_text
 
 
 app = Flask(__name__)
+
+session_directory = Path(app.instance_path) / "sessions"
+session_directory.mkdir(parents=True, exist_ok=True)
 
 app.config["SECRET_KEY"] = (
     os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 )
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///vault.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_FILE_DIR"] = str(session_directory)
+app.config["SESSION_USE_SIGNER"] = True
+app.config["SESSION_PERMANENT"] = True
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = False
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
 
 db.init_app(app)
 csrf = CSRFProtect(app)
+server_session = ServerSession(app)
 
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
@@ -38,6 +51,43 @@ login_manager.login_message = "Please log in to access your vault."
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
+
+
+def get_vault_key():
+    stored_key = session.get("vault_key")
+
+    if stored_key is None:
+        return None
+
+    return stored_key.encode("utf-8")
+
+
+def credential_for_display(credential, vault_key):
+    return {
+        "id": credential.id,
+        "service": decrypt_text(
+            vault_key,
+            credential.service_encrypted
+        ),
+        "login_username": decrypt_text(
+            vault_key,
+            credential.username_encrypted
+        ),
+        "password": decrypt_text(
+            vault_key,
+            credential.password_encrypted
+        ),
+        "website": decrypt_text(
+            vault_key,
+            credential.website_encrypted
+        ),
+        "notes": decrypt_text(
+            vault_key,
+            credential.notes_encrypted
+        ),
+        "created_at": credential.created_at,
+        "updated_at": credential.updated_at
+    }
 
 
 @app.route("/")
@@ -60,7 +110,9 @@ def register():
         )
 
         if existing_user:
-            form.username.errors.append("That username is already registered.")
+            form.username.errors.append(
+                "That username is already registered."
+            )
         else:
             user = User(username=username)
             user.set_password(form.password.data)
@@ -91,9 +143,15 @@ def login():
         if user is None or not user.check_password(form.password.data):
             flash("Invalid username or master password.")
         else:
+            vault_key = derive_vault_key(
+                form.password.data,
+                user.encryption_salt
+            )
+
             session.clear()
             login_user(user)
             session.permanent = True
+            session["vault_key"] = vault_key.decode("utf-8")
 
             flash("Login successful.")
             return redirect(url_for("vault"))
@@ -104,7 +162,80 @@ def login():
 @app.route("/vault")
 @login_required
 def vault():
-    return render_template("vault.html")
+    vault_key = get_vault_key()
+
+    if vault_key is None:
+        logout_user()
+        session.clear()
+        flash("Your vault session expired. Please log in again.")
+        return redirect(url_for("login"))
+
+    credential_records = db.session.scalars(
+        db.select(Credential)
+        .where(Credential.user_id == current_user.id)
+        .order_by(Credential.updated_at.desc())
+    ).all()
+
+    credentials = [
+        credential_for_display(record, vault_key)
+        for record in credential_records
+    ]
+
+    return render_template(
+        "vault.html",
+        credentials=credentials
+    )
+
+
+@app.route("/vault/add", methods=["GET", "POST"])
+@login_required
+def add_credential():
+    vault_key = get_vault_key()
+
+    if vault_key is None:
+        logout_user()
+        session.clear()
+        flash("Your vault session expired. Please log in again.")
+        return redirect(url_for("login"))
+
+    form = CredentialForm()
+
+    if form.validate_on_submit():
+        credential = Credential(
+            user_id=current_user.id,
+            service_encrypted=encrypt_text(
+                vault_key,
+                form.service.data.strip()
+            ),
+            username_encrypted=encrypt_text(
+                vault_key,
+                form.login_username.data.strip()
+            ),
+            password_encrypted=encrypt_text(
+                vault_key,
+                form.password.data
+            ),
+            website_encrypted=encrypt_text(
+                vault_key,
+                form.website.data.strip() if form.website.data else ""
+            ),
+            notes_encrypted=encrypt_text(
+                vault_key,
+                form.notes.data.strip() if form.notes.data else ""
+            )
+        )
+
+        db.session.add(credential)
+        db.session.commit()
+
+        flash("Credential encrypted and saved.")
+        return redirect(url_for("vault"))
+
+    return render_template(
+        "credential_form.html",
+        form=form,
+        page_title="Add credential"
+    )
 
 
 @app.route("/logout", methods=["POST"])
