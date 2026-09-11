@@ -1,14 +1,11 @@
-from flask import Flask
+from flask import Flask, render_template
 
 app = Flask(__name__)
 
 
 @app.route("/")
 def home():
-    return """
-    <h1>Password Vault</h1>
-    <p>The Flask application is running successfully.</p>
-    """
+    return render_template("index.html")
 
 
 if __name__ == "__main__":
