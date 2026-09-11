@@ -33,3 +33,23 @@ class RegistrationForm(FlaskForm):
     )
 
     submit = SubmitField("Create account")
+
+
+class LoginForm(FlaskForm):
+    username = StringField(
+        "Username",
+        validators=[
+            DataRequired(),
+            Length(min=3, max=30)
+        ]
+    )
+
+    password = PasswordField(
+        "Master password",
+        validators=[
+            DataRequired(),
+            Length(min=1, max=128)
+        ]
+    )
+
+    submit = SubmitField("Log in")

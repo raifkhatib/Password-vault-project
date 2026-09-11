@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log In - Password Vault</title>
+</head>
+<body>
+    <main>
+        <h1>Log in</h1>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <p>{{ message }}</p>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="post">
+            {{ form.hidden_tag() }}
+
+            <p>
+                {{ form.username.label }}<br>
+                {{ form.username(autocomplete="username") }}
+            </p>
+            {% for error in form.username.errors %}
+                <p>{{ error }}</p>
+            {% endfor %}
+
+            <p>
+                {{ form.password.label }}<br>
+                {{ form.password(autocomplete="current-password") }}
+            </p>
+            {% for error in form.password.errors %}
+                <p>{{ error }}</p>
+            {% endfor %}
+
+            {{ form.submit() }}
+        </form>
+
+        <p><a href="{{ url_for('register') }}">Create a new account</a></p>
+        <p><a href="{{ url_for('home') }}">Return to homepage</a></p>
+    </main>
+</body>
+</html>
